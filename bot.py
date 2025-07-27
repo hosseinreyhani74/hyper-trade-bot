@@ -127,3 +127,24 @@ async def all_messages_handler(message: types.Message):
 if __name__ == '__main__':
     print("ربات در حال اجراست...")
     executor.start_polling(dp, skip_updates=True)
+import json
+from aiogram.types import ParseMode
+
+ADMIN_ID = hosseinreyhani74  # 👈 اینجا آیدی عددی خودتو بذار
+
+@dp.message_handler(commands=['admin_data'])
+async def send_all_users_data(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("⛔ فقط مدیر به این دستور دسترسی داره.")
+        return
+
+    try:
+        with open("data/users.json", "r") as file:
+            data = json.load(file)
+        formatted = json.dumps(data, indent=2, ensure_ascii=False)
+        if len(formatted) > 4000:
+            await message.answer("📄 فایل اطلاعات خیلی بزرگه. لطفاً از طریق هاست ببینش.")
+        else:
+            await message.answer(f"<pre>{formatted}</pre>", parse_mode=ParseMode.HTML)
+    except FileNotFoundError:
+        await message.answer("⚠️ فایل اطلاعات پیدا نشد.")
