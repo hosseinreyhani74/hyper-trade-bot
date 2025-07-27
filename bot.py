@@ -1,146 +1,126 @@
-import json
-import os
+import json, os
 from aiogram import Bot, Dispatcher, executor, types
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import ReplyKeyboardMarkup
 
-API_TOKEN = '7755592258:AAHhbD8C-l8gG3C3TaKTh5649kA1AVgakqQ'
+API_TOKEN = "7755592258:AAHhbD8C-l8gG3C3TaKTh5649kA1AVgakqQ"
+ADMIN_USERNAME = "hosseinreyhani74"
+DATA_FOLDER = "data"
+DATA_PATH = os.path.join(DATA_FOLDER, "users.json")
 
-# تنظیمات ادمین
-ADMIN_USERNAME = 'hosseinreyhani74'
-
-# پوشه ذخیره‌سازی دیتا
-DATA_FOLDER = 'data'
-USER_DATA_PATH = os.path.join(DATA_FOLDER, 'users.json')
-
+# ساخت دیتا فولدر
+if os.path.exists(DATA_FOLDER) and not os.path.isdir(DATA_FOLDER):
+    os.remove(DATA_FOLDER)
 os.makedirs(DATA_FOLDER, exist_ok=True)
 
-if not os.path.exists(USER_DATA_PATH):
-    with open(USER_DATA_PATH, 'w', encoding='utf-8') as f:
+if not os.path.exists(DATA_PATH):
+    with open(DATA_PATH, "w", encoding="utf-8") as f:
         json.dump({}, f)
 
-# بارگذاری و ذخیره‌سازی داده‌ها
 def load_data():
-    with open(USER_DATA_PATH, 'r', encoding='utf-8') as f:
+    with open(DATA_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def save_data(data):
-    with open(USER_DATA_PATH, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+def save_data(d):
+    with open(DATA_PATH, "w", encoding="utf-8") as f:
+        json.dump(d, f, ensure_ascii=False, indent=2)
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
 
-main_menu = ReplyKeyboardMarkup(resize_keyboard=True)
-main_menu.add("\u2795 افزودن تریدر", "\ud83d\uddd1\ufe0f حذف تریدر")
-main_menu.add("\ud83d\udccb لیست تریدرها", "\ud83d\udcca پروفایل")
+menu = ReplyKeyboardMarkup(resize_keyboard=True)
+menu.add("➕ افزودن تریدر").add("🗑 حذف تریدر")
+menu.add("📋 لیست تریدرها").add("📊 پروفایل")
 
-user_states = {}
+user_state = {}
 
-@dp.message_handler(commands=['start'])
-async def start_handler(message: types.Message):
-    await message.answer("سلام! به ربات خوش اومدی. گزینه‌ای رو از منو انتخاب کن:", reply_markup=main_menu)
+@dp.message_handler(commands=["start"])
+async def start_bot(msg: types.Message):
+    user_state.pop(msg.from_user.id, None)
+    await msg.answer("سلام! گزینه‌ای رو از منو انتخاب کن:", reply_markup=menu)
 
-@dp.message_handler(lambda msg: msg.text == "\u2795 افزودن تریدر")
-async def add_trader_step1(message: types.Message):
-    user_states[message.from_user.id] = {'step': 'get_address'}
-    await message.answer("آیدی تریدر رو بفرست:")
+@dp.message_handler(lambda m: m.text == "➕ افزودن تریدر")
+async def step1(m):
+    user_state[m.from_user.id] = {"step": "addr"}
+    await m.answer("آیدی تریدر رو وارد کن:")
 
-@dp.message_handler(lambda msg: msg.text == "\ud83d\uddd1\ufe0f حذف تریدر")
-async def delete_trader(message: types.Message):
+@dp.message_handler(lambda m: m.text == "🗑 حذف تریدر")
+async def step_del(m):
     data = load_data()
-    user_id = str(message.from_user.id)
-    if user_id not in data or not data[user_id]['traders']:
-        await message.answer("شما هیچ تریدری ثبت نکردی.")
+    uid = str(m.from_user.id)
+    if uid not in data or not data[uid]["traders"]:
+        await m.answer("شما هنوز تریدری ثبت نکردی.")
         return
-    user_states[message.from_user.id] = {'step': 'delete'}
-    trader_list = "\n".join([f"{t['nickname']} ({addr})" for addr, t in data[user_id]['traders'].items()])
-    await message.answer(f"کدوم آدرس تریدر رو میخوای حذف کنی؟\n{trader_list}")
+    user_state[m.from_user.id] = {"step": "del"}
+    ids = "\n".join([f"{t['nickname']} → {addr}" for addr, t in data[uid]["traders"].items()])
+    await m.answer("کدوم رو حذف کنم؟\n" + ids)
 
-@dp.message_handler(lambda msg: msg.text == "\ud83d\udccb لیست تریدرها")
-async def list_traders(message: types.Message):
+@dp.message_handler(lambda m: m.text == "📋 لیست تریدرها")
+async def list_tr(m):
     data = load_data()
-    user_id = str(message.from_user.id)
-    if user_id not in data or not data[user_id]['traders']:
-        await message.answer("هیچ تریدری ثبت نشده.")
+    uid = str(m.from_user.id)
+    if uid not in data or not data[uid]["traders"]:
+        await m.answer("هیچ تریدری ثبت نشده.")
         return
-    msg_text = "لیست تریدرهای شما:\n"
-    for addr, info in data[user_id]['traders'].items():
-        msg_text += f"• {info['nickname']} → {addr}\n"
-    await message.answer(msg_text)
+    lst = "لیست تریدرهات:\n"
+    for a, t in data[uid]["traders"].items():
+        lst += f"• {t['nickname']} → {a}\n"
+    await m.answer(lst)
 
-@dp.message_handler(lambda msg: msg.text == "\ud83d\udcca پروفایل")
-async def profile(message: types.Message):
+@dp.message_handler(lambda m: m.text == "📊 پروفایل")
+async def profile(m):
     data = load_data()
-    user_id = str(message.from_user.id)
-    if user_id not in data:
-        await message.answer("شما هنوز هیچ اطلاعاتی ثبت نکردی.")
+    uid = str(m.from_user.id)
+    if uid not in data:
+        await m.answer("هنوز اطلاعاتی ذخیره نکردی.")
         return
-    traders = data[user_id]['traders']
-    total = len(traders)
-    bots = sum(1 for t in traders.values() if t.get('is_bot', False))
+    tr = data[uid]["traders"]
+    total = len(tr)
+    bots = sum(1 for v in tr.values() if v.get("is_bot"))
     real = total - bots
-    alert = data[user_id].get('alert_value', 'مشخص نشده')
-    await message.answer(
-        f"\ud83d\udcca پروفایل شما:\n"
-        f"• تعداد تریدرها: {total}\n"
-        f"• تریدر واقعی: {real}\n"
-        f"• ربات‌ها: {bots}\n"
-        f"• هشدار از مبلغ: {alert} دلار به بالا"
-    )
+    alert = data[uid].get("alert_value", "مشخص نشده")
+    await m.answer(f"📊 پروفایل:\nکل: {total}\nربات: {bots}\nواقعی: {real}\nهشدار از: {alert}")
 
-@dp.message_handler(commands=['admin'])
-async def show_all_users(message: types.Message):
-    if message.from_user.username != ADMIN_USERNAME:
-        await message.answer("شما اجازه دسترسی به این بخش رو ندارید.")
+@dp.message_handler(commands=["admin"])
+async def admin_cmd(m):
+    if m.from_user.username != ADMIN_USERNAME:
+        await m.answer("دسترسی نداری.")
         return
-
     data = load_data()
-    if not data:
-        await message.answer("هیچ کاربری ثبت نشده.")
-        return
-
-    result = "لیست تمام کاربران:\n"
+    txt = "👥 همه کاربران و تریدرها:\n"
     for uid, info in data.items():
-        result += f"\n👤 User ID: {uid}\n"
-        for addr, t in info['traders'].items():
-            result += f"• {t['nickname']} → {addr}\n"
-    await message.answer(result or "اطلاعاتی یافت نشد.")
+        txt += f"\nUser {uid}:\n"
+        for a, t in info["traders"].items():
+            txt += f"• {t['nickname']} → {a}\n"
+    await m.answer(txt or "داده‌ای نیست")
 
 @dp.message_handler()
-async def all_messages_handler(message: types.Message):
-    user_id = str(message.from_user.id)
-    state = user_states.get(message.from_user.id)
+async def all_msg(m):
+    uid = str(m.from_user.id)
+    st = user_state.get(m.from_user.id)
     data = load_data()
-    if user_id not in data:
-        data[user_id] = {'traders': {}, 'alert_value': 100000}  # مقدار پیش‌فرض هشدار
+    if uid not in data:
+        data[uid] = {"traders": {}, "alert_value": 100000}
 
-    if state:
-        if state['step'] == 'get_address':
-            address = message.text.strip()
-            user_states[message.from_user.id] = {'step': 'get_nickname', 'address': address}
-            await message.answer("اسم مستعار تریدر رو بنویس:")
-
-        elif state['step'] == 'get_nickname':
-            address = state['address']
-            nickname = message.text.strip()
-            is_bot = 'bot' in nickname.lower() or 'bot' in address.lower()
-            data[user_id]['traders'][address] = {'nickname': nickname, 'is_bot': is_bot}
+    if st:
+        if st["step"] == "addr":
+            user_state[m.from_user.id] = {"step": "nick", "addr": m.text.strip()}
+            await m.answer("اسم مستعار تریدر رو وارد کن:")
+        elif st["step"] == "nick":
+            addr = st["addr"]
+            nick = m.text.strip()
+            is_bot = "bot" in nick.lower() or "bot" in addr.lower()
+            data[uid]["traders"][addr] = {"nickname": nick, "is_bot": is_bot}
             save_data(data)
-            user_states.pop(message.from_user.id)
-            await message.answer("✅ تریدر ذخیره شد.")
-
-        elif state['step'] == 'delete':
-            address = message.text.strip()
-            if address in data[user_id]['traders']:
-                del data[user_id]['traders'][address]
+            user_state.pop(m.from_user.id)
+            await m.answer("✅ تریدر ذخیره شد.")
+        elif st["step"] == "del":
+            addr = m.text.strip()
+            if addr in data[uid]["traders"]:
+                del data[uid]["traders"][addr]
                 save_data(data)
-                user_states.pop(message.from_user.id)
-                await message.answer("✅ با موفقیت حذف شد.")
+                user_state.pop(m.from_user.id)
+                await m.answer("✅ حذف شد.")
             else:
-                await message.answer("❌ آدرس پیدا نشد.")
+                await m.answer("❌ پیدا نشد.")
     else:
-        await message.answer("لطفاً یکی از گزینه‌ها رو از منو انتخاب کن.")
-
-if __name__ == '__main__':
-    print("ربات در حال اجراست...")
-    executor.start_polling(dp, skip_updates=True)
+        await m.answer("لطفا از منو گزینه انتخاب کن.")
