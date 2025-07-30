@@ -7,7 +7,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 
 # ==== پیکربندی ربات ====
 API_TOKEN = '7755592258:AAHhbD8C-l8gG3C3TaKTh5649kA1AVgakqQ'
-ADMIN_USERNAME = 'hosseinreyhani74'
+ADMIN_USERNAME = '@hosseinreyhani74'
 
 # ====== ساخت مسیر و فایل ======
 if not os.path.exists('data'):
