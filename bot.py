@@ -129,14 +129,14 @@ async def show_profile(message: types.Message):
 
     msg = f"📊 پروفایل شما:\n▪ تریدرها: {num_traders}\n▪ هشدار از مبلغ: ${alert_value}"
     await message.answer(msg)
-import json
+    import json
 import os
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 API_TOKEN = '7755592258:AAHhbD8C-l8gG3C3TaKTh5649kA1AVgakqQ'
 
-# آی‌دی عددی ادمین (بر اساس username شما @hosseinreyhani74)
+# آی‌دی عددی ادمین (@hosseinreyhani74)
 ADMIN_ID = 805989529
 
 # مسیر ذخیره‌سازی داده‌ها
@@ -180,8 +180,10 @@ async def user_data_admin(message: types.Message):
         return
     text = ""
     for user_id, info in data.items():
+        username = info.get("username", "نداره")
         text += f"\n👤 User ID: {user_id}\n"
-        for addr, t in info['traders'].items():
+        text += f"🔗 Username: @{username}\n"
+        for addr, t in info.get("traders", {}).items():
             text += f"• {t['nickname']} → {addr}\n"
     await message.answer(text or "هیچ داده‌ای ثبت نشده.")
 
@@ -236,10 +238,13 @@ async def profile(message: types.Message):
 @dp.message_handler()
 async def all_messages_handler(message: types.Message):
     user_id = str(message.from_user.id)
+    username = message.from_user.username or "نداره"
     state = user_states.get(message.from_user.id)
     data = load_data()
     if user_id not in data:
-        data[user_id] = {'traders': {}, 'alert_value': 100000}
+        data[user_id] = {'traders': {}, 'alert_value': 100000, 'username': username}
+    else:
+        data[user_id]['username'] = username
     if state:
         if state['step'] == 'get_address':
             address = message.text.strip()
