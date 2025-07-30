@@ -137,7 +137,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 API_TOKEN = '7755592258:AAHhbD8C-l8gG3C3TaKTh5649kA1AVgakqQ'
 
 # آی‌دی عددی ادمین (بر اساس username شما @hosseinreyhani74)
-ADMIN_ID = 946167151
+ADMIN_ID = 805989529
 
 # مسیر ذخیره‌سازی داده‌ها
 data_folder = 'data'
