@@ -135,7 +135,7 @@ from aiogram import types
 from datetime import datetime
 
 # آی‌دی عددی ادمین (بر اساس username داده شده)
-ADMIN_IDS = [1184382091]  # hosseinreyhani74
+ADMIN_IDS = [1184382091]  # @hosseinreyhani74
 
 DATA_FILE = "data/users.json"
 os.makedirs("data", exist_ok=True)
