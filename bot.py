@@ -129,6 +129,78 @@ async def show_profile(message: types.Message):
 
     msg = f"📊 پروفایل شما:\n▪ تریدرها: {num_traders}\n▪ هشدار از مبلغ: ${alert_value}"
     await message.answer(msg)
+import json
+import os
+from aiogram import types
+from datetime import datetime
+
+# آی‌دی عددی ادمین (بر اساس username داده شده)
+ADMIN_IDS = [1184382091]  # hosseinreyhani74
+
+DATA_FILE = "data/users.json"
+os.makedirs("data", exist_ok=True)
+if not os.path.exists(DATA_FILE):
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump({}, f)
+
+# ذخیره اطلاعات تریدر کاربر
+def save_trader(user_id: int, username: str, trader_name: str):
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    user_id = str(user_id)
+    if user_id not in data:
+        data[user_id] = {"username": username or "ندارد", "traders": [], "saved_at": ""}
+
+    if trader_name not in data[user_id]["traders"]:
+        data[user_id]["traders"].append(trader_name)
+        data[user_id]["saved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+
+# کاربر: ثبت تریدر با دستور "add ..."
+@dp.message_handler(lambda message: message.text.startswith("add "))
+async def handle_add_trader(message: types.Message):
+    trader_name = message.text.replace("add ", "").strip()
+    if not trader_name:
+        await message.reply("❗ اسم تریدر نمی‌تونه خالی باشه.")
+        return
+
+    save_trader(
+        message.from_user.id,
+        message.from_user.username,
+        trader_name
+    )
+    await message.reply(f"✅ تریدر '{trader_name}' ذخیره شد.")
+
+# ادمین: نمایش لیست همه کاربران و تریدرها
+@dp.message_handler(commands=["users_data"])
+async def show_all_users(message: types.Message):
+    if message.from_user.id not in ADMIN_IDS:
+        await message.reply("⛔ شما دسترسی ندارید.")
+        return
+
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    if not data:
+        await message.reply("هیچ اطلاعاتی ثبت نشده.")
+        return
+
+    text = "📋 لیست کاربران و تریدرها:\n\n"
+    for user_id, info in data.items():
+        text += f"🆔 ID: {user_id}\n"
+        text += f"👤 Username: @{info['username']}\n"
+        text += f"📌 تریدرها: {', '.join(info['traders'])}\n"
+        text += f"🕒 زمان ذخیره: {info['saved_at']}\n\n"
+
+    if len(text) > 4000:
+        with open("data/report.txt", "w", encoding="utf-8") as f:
+            f.write(text)
+        await message.reply_document(types.InputFile("data/report.txt"))
+    else:
+        await message.reply(text)
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
