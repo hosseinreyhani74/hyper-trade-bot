@@ -39,6 +39,7 @@ def ensure_user_data(data, user_id, username=""):
 class AddTrader(StatesGroup):
     waiting_for_address = State()
     waiting_for_nickname = State()
+    waiting_for_alert_value = State()
 
 class DeleteTrader(StatesGroup):
     waiting_for_delete_address = State()
@@ -59,36 +60,61 @@ async def start_handler(message: types.Message):
     await message.answer("سلام 👋 یکی از گزینه‌های زیر رو انتخاب کن:", reply_markup=main_menu)
 
 # ========== افزودن تریدر ==========
+# مراحل جدید برای افزودن تریدر
+
+class AddTrader(StatesGroup):
+    waiting_for_address = State()
+    waiting_for_nickname = State()
+    waiting_for_alert_value = State()
+
 @dp.message_handler(lambda msg: msg.text == "➕ افزودن تریدر")
 async def add_trader_step1(message: types.Message):
     await AddTrader.waiting_for_address.set()
-    await message.answer("آدرس تریدر رو بفرست:")
+    await message.answer("آدرس تریدر رو وارد کن:")
 
 @dp.message_handler(state=AddTrader.waiting_for_address, content_types=types.ContentTypes.TEXT)
 async def add_trader_step2(message: types.Message, state: FSMContext):
     await state.update_data(address=message.text.strip())
     await AddTrader.next()
-    await message.answer("اسم مستعار تریدر رو وارد کن:")
+    await message.answer("اسم مستعار تریدر رو بنویس:")
 
 @dp.message_handler(state=AddTrader.waiting_for_nickname, content_types=types.ContentTypes.TEXT)
-async def add_trader_finish(message: types.Message, state: FSMContext):
-    user_id = str(message.from_user.id)
-    username = message.from_user.username or "نداره"
-    nickname = message.text.strip()
+async def add_trader_step3(message: types.Message, state: FSMContext):
+    await state.update_data(nickname=message.text.strip())
+    await AddTrader.next()
+    await message.answer("از چه مبلغی به بالا می‌خوای هشدار بگیری؟ (مثلاً: 150000)")
+
+@dp.message_handler(state=AddTrader.waiting_for_alert_value, content_types=types.ContentTypes.TEXT)
+async def add_trader_step4(message: types.Message, state: FSMContext):
+    try:
+        alert_value = int(message.text.strip())
+    except ValueError:
+        await message.answer("❌ لطفاً فقط عدد بنویس (مثلاً 150000).")
+        return
+
     user_data = await state.get_data()
     address = user_data["address"]
+    nickname = user_data["nickname"]
+    user_id = str(message.from_user.id)
+    username = message.from_user.username or "نداره"
 
-    all_data = load_data()
-    all_data = ensure_user_data(all_data, user_id, username)
+    data = load_data()
+    if user_id not in data:
+        data[user_id] = {
+            "traders": {},
+            "alert_value": 100000,
+            "username": username
+        }
 
     is_bot = 'bot' in nickname.lower() or 'bot' in address.lower()
-    all_data[user_id]["traders"][address] = {
+    data[user_id]["traders"][address] = {
         "nickname": nickname,
         "is_bot": is_bot,
-        "added_by": user_id
+        "added_by": user_id,
+        "alert_value": alert_value
     }
 
-    save_data(all_data)
+    save_data(data)
     await state.finish()
     await message.answer("✅ تریدر با موفقیت ذخیره شد.")
 
