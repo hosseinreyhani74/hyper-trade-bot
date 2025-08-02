@@ -154,32 +154,46 @@ async def list_traders(message: types.Message):
         await message.answer(chunk)
 
 # ========== حذف تریدر ==========
+class DeleteTrader(StatesGroup):
+    waiting_for_delete_address = State()
+
 @dp.message_handler(lambda msg: msg.text == "🗑️ حذف تریدر")
 async def delete_trader_prompt(message: types.Message):
     user_id = str(message.from_user.id)
-    data = ensure_user_data(load_data(), user_id, message.from_user.username)
+    username = message.from_user.username or "نداره"
 
-    if not data[user_id]["traders"]:
+    data = load_data()
+    if user_id not in data:
+        data[user_id] = {"traders": {}, "alert_value": 100000, "username": username}
+    elif "username" not in data[user_id]:
+        data[user_id]["username"] = username
+
+    traders = data[user_id].get("traders", {})
+    if not traders:
         await message.answer("❌ هیچ تریدری ثبت نشده.")
         return
 
-    msg_text = "\n".join([f"{info['nickname']} → {addr}" for addr, info in data[user_id]["traders"].items()])
+    msg_text = "\n".join([f"{info['nickname']} → `{addr}`" for addr, info in traders.items()])
+    await message.answer(f"کد آدرس تریدر مورد نظر برای حذف رو بفرست:\n\n{msg_text}", parse_mode="Markdown")
     await DeleteTrader.waiting_for_delete_address.set()
-    await message.answer(f"کد آدرس تریدر مورد نظر برای حذف رو بفرست:\n{msg_text}")
 
 @dp.message_handler(state=DeleteTrader.waiting_for_delete_address, content_types=types.ContentTypes.TEXT)
 async def delete_trader_execute(message: types.Message, state: FSMContext):
     address = message.text.strip()
     user_id = str(message.from_user.id)
-    data = load_data()
 
-    if address in data.get(user_id, {}).get("traders", {}):
+    data = load_data()
+    traders = data.get(user_id, {}).get("traders", {})
+
+    if address in traders:
         del data[user_id]["traders"][address]
         save_data(data)
-        await message.answer("✅ تریدر حذف شد.")
+        await message.answer("✅ تریدر با موفقیت حذف شد.")
     else:
-        await message.answer("❌ این تریدر وجود نداره.")
+        await message.answer("❌ آدرس وارد شده در لیست شما نیست.")
+    
     await state.finish()
+
 
 # ========== پروفایل ==========
 @dp.message_handler(lambda msg: msg.text == "📊 پروفایل")
