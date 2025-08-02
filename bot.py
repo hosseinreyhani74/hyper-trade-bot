@@ -108,7 +108,6 @@ class AddTrader(StatesGroup):
 
 @dp.message_handler(lambda msg: msg.text == "➕ افزودن تریدر")
 async def add_trader_step1(message: types.Message):
-    await state.finish()
     await AddTrader.waiting_for_address.set()
     await message.answer("آدرس تریدر رو وارد کن:")
 
