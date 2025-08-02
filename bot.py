@@ -4,7 +4,16 @@ from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
-
+def split_text(text, max_length=4000):
+    chunks = []
+    while len(text) > max_length:
+        split_index = text.rfind('\n', 0, max_length)
+        if split_index == -1:
+            split_index = max_length
+        chunks.append(text[:split_index])
+        text = text[split_index:].lstrip('\n')
+    chunks.append(text)
+    return chunks
 # ========== پیکربندی ==========
 API_TOKEN = '7755592258:AAHhbD8C-l8gG3C3TaKTh5649kA1AVgakqQ'
 ADMIN_ID = 805989529  # عددی
@@ -131,27 +140,17 @@ async def add_trader_step4(message: types.Message, state: FSMContext):
 async def list_traders(message: types.Message):
     data = load_data()
     user_id = str(message.from_user.id)
-
-    if user_id not in data or not data[user_id].get("traders"):
-        await message.answer("❗ هیچ تریدری ثبت نشده.")
+    if user_id not in data or not data[user_id]['traders']:
+        await message.answer("⛔ لیست شما خالی است.")
         return
 
-    traders = data[user_id]["traders"]
-    text_lines = ["📋 لیست تریدرهای شما:\n"]
+    msg_text = "📋 لیست تریدرهای شما:\n"
+    for addr, info in data[user_id]['traders'].items():
+        msg_text += f"• {info['nickname']} → {addr}\n"
 
-    for i, (address, info) in enumerate(traders.items(), 1):
-        nickname = info.get("nickname", "نامشخص")
-        is_bot = "ربات 🤖" if info.get("is_bot") else "واقعی 👤"
-        alert = info.get("alert_value", "نامشخص")
-        text_lines.append(
-            f"{i}. {nickname} ({is_bot})\n📍 آدرس: {address}\n🚨 هشدار: {alert}$\n"
-        )
+    for chunk in split_text(msg_text):
+        await message.answer(chunk)
 
-    response_text = "\n".join(text_lines)
-
-    # اگر پیام خیلی طولانی بود، تقسیمش می‌کنیم
-    for part in split_text(response_text):
-        await message.answer(part)
 
 # ========== حذف تریدر ==========
 @dp.message_handler(lambda msg: msg.text == "🗑️ حذف تریدر")
