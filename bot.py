@@ -100,11 +100,14 @@ async def add_trader_step4(message: types.Message, state: FSMContext):
 
     data = load_data()
     if user_id not in data:
+        else:
         data[user_id] = {
             "traders": {},
             "alert_value": 100000,
             "username": username
         }
+else:
+    data[user_id]['username'] = username   # ← این خط رو اضافه کن
 
     is_bot = 'bot' in nickname.lower() or 'bot' in address.lower()
     data[user_id]["traders"][address] = {
@@ -193,3 +196,37 @@ async def profile(message: types.Message):
 if __name__ == "__main__":
     print("ربات اجرا شد...")
     executor.start_polling(dp, skip_updates=True)
+ADMIN_ID = 805989529  # آیدی تلگرام خودت
+
+def split_text(text, max_length=4000):
+    parts = []
+    while len(text) > max_length:
+        split_pos = text.rfind('\n', 0, max_length)
+        if split_pos == -1:
+            split_pos = max_length
+        parts.append(text[:split_pos])
+        text = text[split_pos:]
+    parts.append(text)
+    return parts
+
+@dp.message_handler(commands=['user_data'])
+async def user_data_admin(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("❌ شما دسترسی ندارید.")
+        return
+    data = load_data()
+    if not data:
+        await message.answer("هیچ داده‌ای ثبت نشده.")
+        return
+
+    text = ""
+    for user_id, info in data.items():
+        username = info.get("username", "نداره")
+        text += f"\n👤 User ID: {user_id}\n"
+        text += f"🔗 Username: @{username}\n"
+        for addr, t in info.get("traders", {}).items():
+            text += f"• {t['nickname']} → {addr}\n"
+
+    messages = split_text(text)
+    for part in messages:
+        await message.answer(part)
