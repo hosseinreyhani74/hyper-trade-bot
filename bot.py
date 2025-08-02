@@ -132,28 +132,26 @@ async def list_traders(message: types.Message):
     data = load_data()
     user_id = str(message.from_user.id)
 
-    if user_id not in data or not data[user_id]["traders"]:
-        await message.answer("❗ شما هنوز تریدری ثبت نکرده‌اید.")
+    if user_id not in data or not data[user_id].get("traders"):
+        await message.answer("❗ هیچ تریدری ثبت نشده.")
         return
 
     traders = data[user_id]["traders"]
-    text = "📋 لیست تریدرها:\n\n"
-    for address, info in traders.items():
+    text_lines = ["📋 لیست تریدرهای شما:\n"]
+
+    for i, (address, info) in enumerate(traders.items(), 1):
         nickname = info.get("nickname", "نامشخص")
-        is_bot = "🤖 ربات" if info.get("is_bot") else "👤 واقعی"
+        is_bot = "ربات 🤖" if info.get("is_bot") else "واقعی 👤"
         alert = info.get("alert_value", "نامشخص")
-        added_by = info.get("added_by", "نامشخص")
-        added_by_username = info.get("added_by_username", "نداره")
-        text += (
-            f"🔹 *{nickname}*\n"
-            f"📍 آدرس: `{address}`\n"
-            f"{is_bot}\n"
-            f"📈 هشدار از: {alert}$\n"
-            f"🆔 آیدی عددی: `{added_by}`\n"
-            f"👤 یوزرنیم: @{added_by_username}\n\n"
+        text_lines.append(
+            f"{i}. {nickname} ({is_bot})\n📍 آدرس: {address}\n🚨 هشدار: {alert}$\n"
         )
 
-    await message.answer(text, parse_mode="Markdown")
+    response_text = "\n".join(text_lines)
+
+    # اگر پیام خیلی طولانی بود، تقسیمش می‌کنیم
+    for part in split_text(response_text):
+        await message.answer(part)
 
 # ========== حذف تریدر ==========
 @dp.message_handler(lambda msg: msg.text == "🗑️ حذف تریدر")
@@ -250,3 +248,15 @@ async def user_data_admin(message: types.Message):
     messages = split_text(text)
     for part in messages:
         await message.answer(part)
+def split_text(text, limit=4000):
+    lines = text.split('\n')
+    chunks = []
+    current = ''
+    for line in lines:
+        if len(current) + len(line) + 1 > limit:
+            chunks.append(current)
+            current = ''
+        current += line + '\n'
+    if current:
+        chunks.append(current)
+    return chunks
