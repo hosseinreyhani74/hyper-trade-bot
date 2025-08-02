@@ -1,7 +1,9 @@
-import json
 import os
+import json
+from datetime import datetime
 
 DATA_FILE = "data.json"
+BACKUP_DIR = "backups"
 
 def load_data():
     if not os.path.exists(DATA_FILE):
@@ -10,8 +12,22 @@ def load_data():
         return json.load(f)
 
 def save_data(data):
+    # ذخیره فایل اصلی
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+    # ساخت پوشه بکاپ (اگه وجود نداره)
+    if not os.path.exists(BACKUP_DIR):
+        os.makedirs(BACKUP_DIR)
+
+    # ساخت اسم فایل بکاپ با تاریخ روز
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    backup_file = os.path.join(BACKUP_DIR, f"backup_{date_str}.json")
+
+    # ذخیره نسخه پشتیبان
+    with open(backup_file, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
 import os
 import json
 from aiogram import Bot, Dispatcher, executor, types
