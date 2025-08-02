@@ -186,26 +186,31 @@ async def delete_trader_execute(message: types.Message, state: FSMContext):
 # ========== پروفایل ==========
 @dp.message_handler(lambda msg: msg.text == "📊 پروفایل")
 async def profile(message: types.Message):
-    user_id = str(message.from_user.id)
     data = load_data()
-    user_data = data.get(user_id)
+    user_id = str(message.from_user.id)
 
-    if not user_data or not user_data.get("traders"):
-        await message.answer("❗شما هنوز تریدری ثبت نکردید.")
+    if user_id not in data or not data[user_id].get("traders"):
+        await message.answer("❗ شما هنوز تریدری ثبت نکردید.")
         return
 
-    total = len(user_data["traders"])
-    bots = sum(1 for t in user_data["traders"].values() if t.get("is_bot"))
+    traders = data[user_id]["traders"]
+    total = len(traders)
+    bots = sum(1 for t in traders.values() if t.get("is_bot", False))
     real = total - bots
-    alert_value = user_data.get("alert_value", "نامشخص")
+    alert = data[user_id].get("alert_value", "نامشخص")
+    username = data[user_id].get("username", "نداره")
+    telegram_id = user_id
 
     await message.answer(
         f"📊 پروفایل شما:\n"
+        f"👤 نام کاربری: @{username}\n"
+        f"🆔 کد تلگرام: {telegram_id}\n"
         f"• مجموع تریدرها: {total}\n"
         f"• واقعی: {real}\n"
         f"• ربات: {bots}\n"
-        f"• هشدار از مبلغ: ${alert_value}"
+        f"• هشدار از مبلغ: {alert} دلار"
     )
+
 
 # ========== اجرای ربات ==========
 if __name__ == "__main__":
