@@ -108,6 +108,7 @@ class AddTrader(StatesGroup):
 
 @dp.message_handler(lambda msg: msg.text == "➕ افزودن تریدر")
 async def add_trader_step1(message: types.Message):
+    await state.finish()
     await AddTrader.waiting_for_address.set()
     await message.answer("آدرس تریدر رو وارد کن:")
 
@@ -167,7 +168,10 @@ async def add_trader_step4(message: types.Message, state: FSMContext):
 
 # ========== لیست تریدرها ==========
 @dp.message_handler(lambda msg: msg.text == "📋 لیست تریدرها")
-async def list_traders(message: types.Message):
+async def list_traders(message: types.Message, state: FSMContext):
+    await state.finish()  # این خط رو اضافه کن تا state تموم شه
+    ...
+
     user_id = str(message.from_user.id)
     data = load_data()
 
@@ -216,7 +220,10 @@ class DeleteTrader(StatesGroup):
     waiting_for_delete_address = State()
 
 @dp.message_handler(lambda msg: msg.text == "🗑️ حذف تریدر")
-async def delete_trader_prompt(message: types.Message):
+async def delete_trader_prompt(message: types.Message, state: FSMContext):
+    await state.finish()
+    ...
+
     user_id = str(message.from_user.id)
     username = message.from_user.username or "نداره"
 
@@ -256,6 +263,7 @@ async def delete_trader_execute(message: types.Message, state: FSMContext):
 # ========== پروفایل ==========
 @dp.message_handler(lambda msg: msg.text == "📊 پروفایل")
 async def profile(message: types.Message):
+    await state.finish()
     data = load_data()
     user_id = str(message.from_user.id)
     username = message.from_user.username or "نداره"
