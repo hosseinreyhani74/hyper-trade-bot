@@ -148,9 +148,10 @@ async def list_traders(message: types.Message):
     for addr, info in data[user_id]['traders'].items():
         msg_text += f"• {info['nickname']} → {addr}\n"
 
-    for chunk in split_text(msg_text):
+    # تقسیم پیام طولانی به بخش های کوچکتر
+    chunks = split_text(msg_text)
+    for chunk in chunks:
         await message.answer(chunk)
-
 
 # ========== حذف تریدر ==========
 @dp.message_handler(lambda msg: msg.text == "🗑️ حذف تریدر")
