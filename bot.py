@@ -138,20 +138,48 @@ async def add_trader_step4(message: types.Message, state: FSMContext):
 # ========== لیست تریدرها ==========
 @dp.message_handler(lambda msg: msg.text == "📋 لیست تریدرها")
 async def list_traders(message: types.Message):
-    data = load_data()
     user_id = str(message.from_user.id)
-    if user_id not in data or not data[user_id]['traders']:
-        await message.answer("⛔ لیست شما خالی است.")
+    data = load_data()
+
+    if user_id not in data or not data[user_id].get("traders"):
+        await message.answer("📭 لیست تریدرها خالیه.")
         return
 
-    msg_text = "📋 لیست تریدرهای شما:\n"
-    for addr, info in data[user_id]['traders'].items():
-        msg_text += f"• {info['nickname']} → {addr}\n"
+    traders = data[user_id]["traders"]
+    msg = "📋 لیست تریدرها:\n\n"
 
-    # تقسیم پیام طولانی به بخش های کوچکتر
-    chunks = split_text(msg_text)
-    for chunk in chunks:
-        await message.answer(chunk)
+    for address, info in traders.items():
+        nickname = info.get("nickname", "نامشخص")
+        added_by = info.get("added_by", "ناشناس")
+        username = data.get(user_id, {}).get("username", "نداره")
+        msg += (
+            f"🏷️ {nickname}\n"
+            f"🔗 {address}\n"
+            f"👤 ID: `{added_by}`\n"
+            f"🆔 @{username}\n"
+            f"──────────────\n"
+        )
+
+    # استفاده از تابع split_text برای تقسیم پیام بلند
+    for part in split_text(msg):
+        await message.answer(part)
+def split_text(text, max_length=4000):
+    lines = text.split('\n')
+    chunks = []
+    current_chunk = ""
+
+    for line in lines:
+        if len(current_chunk) + len(line) + 1 <= max_length:
+            current_chunk += line + '\n'
+        else:
+            chunks.append(current_chunk)
+            current_chunk = line + '\n'
+
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    return chunks
+
 
 # ========== حذف تریدر ==========
 class DeleteTrader(StatesGroup):
