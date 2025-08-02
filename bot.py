@@ -106,6 +106,12 @@ async def add_trader_step4(message: types.Message, state: FSMContext):
             "username": username
         }
 
+    # بررسی تکراری بودن آدرس
+    if address in data[user_id]["traders"]:
+        await message.answer("⚠️ این آدرس قبلاً ثبت شده.")
+        await state.finish()
+        return
+
     is_bot = 'bot' in nickname.lower() or 'bot' in address.lower()
     data[user_id]["traders"][address] = {
         "nickname": nickname,
