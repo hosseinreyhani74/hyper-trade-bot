@@ -96,31 +96,29 @@ async def add_trader_step4(message: types.Message, state: FSMContext):
     address = user_data["address"]
     nickname = user_data["nickname"]
     user_id = str(message.from_user.id)
-username = message.from_user.username or "نداره"
+    username = message.from_user.username or "نداره"
 
-data = load_data()
+    data = load_data()
+    if user_id not in data:
+        data[user_id] = {
+            "traders": {},
+            "alert_value": 100000,
+            "username": username
+        }
 
-if user_id not in data:
-    data[user_id] = {
-        "traders": {},
-        "alert_value": 100000,
-        "username": username
+    is_bot = 'bot' in nickname.lower() or 'bot' in address.lower()
+    data[user_id]["traders"][address] = {
+        "nickname": nickname,
+        "is_bot": is_bot,
+        "added_by": user_id,
+        "added_by_username": username,
+        "alert_value": alert_value
     }
-else:
-    data[user_id]["username"] = username
-
-is_bot = 'bot' in nickname.lower() or 'bot' in address.lower()
-data[user_id]["traders"][address] = {
-    "nickname": nickname,
-    "is_bot": is_bot,
-    "added_by": user_id,
-    "alert_value": alert_value
-}
-
 
     save_data(data)
     await state.finish()
     await message.answer("✅ تریدر با موفقیت ذخیره شد.")
+
 
 # ========== لیست تریدرها ==========
 @dp.message_handler(lambda msg: msg.text == "📋 لیست تریدرها")
