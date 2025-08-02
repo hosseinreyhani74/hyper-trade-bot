@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime
 
-DATA_FILE = "data.json"
+DATA_FILE = "data/data.json"
 BACKUP_DIR = "backups"
 
 def load_data():
