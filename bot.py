@@ -167,23 +167,26 @@ async def delete_trader_execute(message: types.Message, state: FSMContext):
 
 # ========== پروفایل ==========
 @dp.message_handler(lambda msg: msg.text == "📊 پروفایل")
-async def profile_handler(message: types.Message):
+async def profile(message: types.Message):
     user_id = str(message.from_user.id)
     data = load_data()
-    data = ensure_user_data(data, user_id, message.from_user.username)
+    user_data = data.get(user_id)
 
-    traders = data[user_id]["traders"]
-    total = len(traders)
-    bots = sum(1 for t in traders.values() if isinstance(t, dict) and t.get("is_bot"))
+    if not user_data or not user_data.get("traders"):
+        await message.answer("❗شما هنوز تریدری ثبت نکردید.")
+        return
+
+    total = len(user_data["traders"])
+    bots = sum(1 for t in user_data["traders"].values() if t.get("is_bot"))
     real = total - bots
-    alert = data[user_id].get("alert_value", 100000)
+    alert_value = user_data.get("alert_value", "نامشخص")
 
     await message.answer(
-        f"📊 پروفایل:\n"
-        f"• تعداد کل تریدرها: {total}\n"
+        f"📊 پروفایل شما:\n"
+        f"• مجموع تریدرها: {total}\n"
         f"• واقعی: {real}\n"
         f"• ربات: {bots}\n"
-        f"• هشدار از مبلغ: {alert} دلار"
+        f"• هشدار از مبلغ: ${alert_value}"
     )
 
 # ========== اجرای ربات ==========
