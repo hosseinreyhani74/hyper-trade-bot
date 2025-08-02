@@ -122,17 +122,20 @@ async def add_trader_step4(message: types.Message, state: FSMContext):
 @dp.message_handler(lambda msg: msg.text == "📋 لیست تریدرها")
 async def list_traders(message: types.Message):
     user_id = str(message.from_user.id)
-    data = ensure_user_data(load_data(), user_id, message.from_user.username)
-
-    traders = data[user_id]["traders"]
-    if not traders:
-        await message.answer("⛔ لیست تریدرهای شما خالیه.")
+    data = load_data()
+    if user_id not in data or not data[user_id]["traders"]:
+        await message.answer("⛔ لیست شما خالی است.")
         return
 
-    msg_text = "📋 لیست تریدرها:\n"
-    for addr, info in traders.items():
-        msg_text += f"• {info['nickname']} → {addr}\n"
-    await message.answer(msg_text)
+    msg_text = "📋 لیست تریدرهای شما:\n\n"
+    for address, info in data[user_id]["traders"].items():
+        nickname = info.get("nickname", "نامشخص")
+        alert = info.get("alert_value", "نامشخص")
+        msg_text += f"🔹 {nickname}\n"
+        msg_text += f"📍 آدرس: `{address}`\n"
+        msg_text += f"💰 هشدار از: ${alert}\n\n"
+
+    await message.answer(msg_text, parse_mode="Markdown")
 
 # ========== حذف تریدر ==========
 @dp.message_handler(lambda msg: msg.text == "🗑️ حذف تریدر")
