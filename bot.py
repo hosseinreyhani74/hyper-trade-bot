@@ -123,21 +123,31 @@ async def add_trader_step4(message: types.Message, state: FSMContext):
 # ========== لیست تریدرها ==========
 @dp.message_handler(lambda msg: msg.text == "📋 لیست تریدرها")
 async def list_traders(message: types.Message):
-    user_id = str(message.from_user.id)
     data = load_data()
+    user_id = str(message.from_user.id)
+
     if user_id not in data or not data[user_id]["traders"]:
-        await message.answer("⛔ لیست شما خالی است.")
+        await message.answer("❗ شما هنوز تریدری ثبت نکرده‌اید.")
         return
 
-    msg_text = "📋 لیست تریدرهای شما:\n\n"
-    for address, info in data[user_id]["traders"].items():
+    traders = data[user_id]["traders"]
+    text = "📋 لیست تریدرها:\n\n"
+    for address, info in traders.items():
         nickname = info.get("nickname", "نامشخص")
+        is_bot = "🤖 ربات" if info.get("is_bot") else "👤 واقعی"
         alert = info.get("alert_value", "نامشخص")
-        msg_text += f"🔹 {nickname}\n"
-        msg_text += f"📍 آدرس: `{address}`\n"
-        msg_text += f"💰 هشدار از: ${alert}\n\n"
+        added_by = info.get("added_by", "نامشخص")
+        added_by_username = info.get("added_by_username", "نداره")
+        text += (
+            f"🔹 *{nickname}*\n"
+            f"📍 آدرس: `{address}`\n"
+            f"{is_bot}\n"
+            f"📈 هشدار از: {alert}$\n"
+            f"🆔 آیدی عددی: `{added_by}`\n"
+            f"👤 یوزرنیم: @{added_by_username}\n\n"
+        )
 
-    await message.answer(msg_text, parse_mode="Markdown")
+    await message.answer(text, parse_mode="Markdown")
 
 # ========== حذف تریدر ==========
 @dp.message_handler(lambda msg: msg.text == "🗑️ حذف تریدر")
