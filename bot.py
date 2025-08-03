@@ -261,31 +261,25 @@ async def delete_trader_execute(message: types.Message, state: FSMContext):
 
 # ========== پروفایل ==========
 @dp.message_handler(lambda msg: msg.text == "📊 پروفایل")
-async def profile(message: types.Message):
-    await state.finish()
-    data = load_data()
+async def user_profile(message: types.Message):
     user_id = str(message.from_user.id)
-    username = message.from_user.username or "نداره"
+    data = load_data()
 
-    if user_id not in data or not data[user_id].get("traders"):
-        await message.answer("❗ شما هنوز تریدری ثبت نکردید.")
+    if user_id not in data:
+        await message.answer("❌ هیچ اطلاعاتی برای شما ثبت نشده.")
         return
 
-    traders = data[user_id]["traders"]
-    total = len(traders)
-    bots = sum(1 for t in traders.values() if t.get("is_bot", False))
-    real = total - bots
-    alert = data[user_id].get("alert_value", "نامشخص")
+    user_info = data[user_id]
+    username = message.from_user.username or "نداره"
+    count = len(user_info.get("traders", {}))
 
-    await message.answer(
-        f"📊 پروفایل:\n"
-        f"• کد تلگرام: `{user_id}`\n"
-        f"• آیدی تلگرام: @{username}\n"
-        f"• مجموع تریدرها: {total}\n"
-        f"• واقعی: {real}\n"
-        f"• ربات: {bots}\n"
-        f"• هشدار از مبلغ: {alert} دلار"
-    )
+    text = f"""📊 پروفایل شما:
+
+👤 یوزرنیم: @{username}
+🆔 آیدی عددی: `{user_id}`
+📈 تعداد تریدرهای ثبت‌شده: {count}
+"""
+    await message.answer(text, parse_mode="Markdown")
 
 
 
