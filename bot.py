@@ -1,3 +1,65 @@
+
+import os
+import json
+import shutil
+from datetime import datetime, timedelta
+import os
+import json
+import shutil
+from datetime import datetime
+import pytz
+
+def get_iran_time():
+    iran_tz = pytz.timezone('Asia/Tehran')
+    return datetime.now(iran_tz)
+
+def save_user_data(user_id, username, user_data, user_dir='users_data', backup_dir='backups'):
+    os.makedirs(user_dir, exist_ok=True)
+    os.makedirs(backup_dir, exist_ok=True)
+
+    filename = f"{username or user_id}.json"
+    file_path = os.path.join(user_dir, filename)
+
+    # ذخیره فایل اصلی
+    with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(user_data, f, ensure_ascii=False, indent=4)
+
+    # ساخت بکاپ
+    iran_time = get_iran_time().strftime("%Y-%m-%d_%H-%M-%S")
+    backup_name = f"{username or user_id}_{iran_time}.json"
+    backup_path = os.path.join(backup_dir, backup_name)
+
+    shutil.copy(file_path, backup_path)
+
+def load_user_data(user_id, username, user_dir='users_data'):
+    filename = f"{username or user_id}.json"
+    file_path = os.path.join(user_dir, filename)
+    if not os.path.exists(file_path):
+        return {"traders": {}, "username": username or ""}
+    
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+def get_iran_time():
+    utc_time = datetime.utcnow()
+    iran_time = utc_time + timedelta(hours=3, minutes=30)  # ساعت ایران
+    return iran_time
+
+def save_data_with_backup(data, file_path='data/data.json', backup_dir='backups'):
+    # ذخیره داده‌ها در فایل اصلی
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+    # ساخت پوشه بکاپ اگر نبود
+    os.makedirs(backup_dir, exist_ok=True)
+
+    # ثبت زمان به وقت ایران
+    iran_time = get_iran_time().strftime("%Y-%m-%d_%H-%M-%S")
+    backup_file = os.path.join(backup_dir, f"backup_{iran_time}.json")
+
+    # کپی فایل اصلی به بکاپ
+    shutil.copy(file_path, backup_file)
 import os
 import json
 from datetime import datetime
@@ -11,7 +73,7 @@ def load_data():
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def save_data(data):
+def save_user_data(user_id, username, data):
     # ذخیره فایل اصلی
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -59,7 +121,7 @@ def load_data():
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def save_data(data):
+def save_user_data(user_id, username, data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
@@ -137,7 +199,7 @@ async def add_trader_step4(message: types.Message, state: FSMContext):
     user_id = str(message.from_user.id)
     username = message.from_user.username or "نداره"
 
-    data = load_data()
+    data = load_user_data(user_id, username)
     if user_id not in data:
         data[user_id] = {
             "traders": {},
@@ -160,7 +222,7 @@ async def add_trader_step4(message: types.Message, state: FSMContext):
         "alert_value": alert_value
     }
 
-    save_data(data)
+    save_user_data(user_id, username, data)
     await state.finish()
     await message.answer("✅ تریدر با موفقیت ذخیره شد.")
 
@@ -172,7 +234,7 @@ async def list_traders(message: types.Message, state: FSMContext):
     ...
 
     user_id = str(message.from_user.id)
-    data = load_data()
+    data = load_user_data(user_id, username)
 
     if user_id not in data or not data[user_id].get("traders"):
         await message.answer("📭 لیست تریدرها خالیه.")
@@ -226,7 +288,7 @@ async def delete_trader_prompt(message: types.Message, state: FSMContext):
     user_id = str(message.from_user.id)
     username = message.from_user.username or "نداره"
 
-    data = load_data()
+    data = load_user_data(user_id, username)
     if user_id not in data:
         data[user_id] = {"traders": {}, "alert_value": 100000, "username": username}
     elif "username" not in data[user_id]:
@@ -246,12 +308,12 @@ async def delete_trader_execute(message: types.Message, state: FSMContext):
     address = message.text.strip()
     user_id = str(message.from_user.id)
 
-    data = load_data()
+    data = load_user_data(user_id, username)
     traders = data.get(user_id, {}).get("traders", {})
 
     if address in traders:
         del data[user_id]["traders"][address]
-        save_data(data)
+        save_user_data(user_id, username, data)
         await message.answer("✅ تریدر با موفقیت حذف شد.")
     else:
         await message.answer("❌ آدرس وارد شده در لیست شما نیست.")
@@ -263,7 +325,7 @@ async def delete_trader_execute(message: types.Message, state: FSMContext):
 @dp.message_handler(lambda msg: msg.text == "📊 پروفایل")
 async def user_profile(message: types.Message):
     user_id = str(message.from_user.id)
-    data = load_data()
+    data = load_user_data(user_id, username)
 
     if user_id not in data:
         await message.answer("❌ هیچ اطلاعاتی برای شما ثبت نشده.")
@@ -305,7 +367,7 @@ async def user_data_admin(message: types.Message):
     if message.from_user.id != ADMIN_ID:
         await message.answer("❌ شما دسترسی ندارید.")
         return
-    data = load_data()
+    data = load_user_data(user_id, username)
     if not data:
         await message.answer("هیچ داده‌ای ثبت نشده.")
         return
