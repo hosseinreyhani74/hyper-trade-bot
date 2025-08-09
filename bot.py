@@ -324,16 +324,26 @@ async def delete_trader_execute(message: types.Message, state: FSMContext):
 # ========== پروفایل ==========
 @dp.message_handler(lambda msg: msg.text == "📊 پروفایل")
 async def show_profile(message: types.Message):
+    import os
+    import json
+
+    BACKUP_FOLDER = "backup"
+
+    def load_user_data(user_id, username):
+        os.makedirs(BACKUP_FOLDER, exist_ok=True)
+        filepath = os.path.join(BACKUP_FOLDER, f"{user_id}_{username}.json")
+        if os.path.exists(filepath):
+            with open(filepath, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return {"traders": {}}
+
     user_id = str(message.from_user.id)
-    username = message.from_user.username
+    username = message.from_user.username or "بدون_نام"
 
-    # لود کردن داده‌های مخصوص همین کاربر
     data = load_user_data(user_id, username)
-
     traders = data.get("traders", {})
     trader_count = len(traders)
 
-    # متن پروفایل
     text = (
         f"📊 پروفایل شما:\n\n"
         f"👤 نام کاربری: @{username}\n"
@@ -341,9 +351,8 @@ async def show_profile(message: types.Message):
         f"📈 تعداد تریدرهای ثبت‌شده: {trader_count}\n"
     )
 
-    # اگر تریدر داشت، لیستش رو هم نشون بده
     if trader_count > 0:
-        text += "\n📋 تریدرها:\n"
+        text += "\n📋 لیست تریدرها:\n"
         for addr, info in traders.items():
             text += f"🏷️ {info['nickname']} → 🔗 {addr}\n"
 
