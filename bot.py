@@ -161,7 +161,14 @@ async def start_handler(message: types.Message):
     await message.answer("سلام 👋 یکی از گزینه‌های زیر رو انتخاب کن:", reply_markup=main_menu)
 
 # ========== افزودن تریدر ==========
-# مراحل جدید برای افزودن تریدر
+import os
+import json
+from datetime import datetime
+from aiogram import types
+from aiogram.dispatcher import FSMContext
+
+# ساخت پوشه data اگر وجود نداشت
+os.makedirs("data", exist_ok=True)
 
 class AddTrader(StatesGroup):
     waiting_for_address = State()
@@ -197,95 +204,84 @@ async def add_trader_step4(message: types.Message, state: FSMContext):
     address = user_data["address"]
     nickname = user_data["nickname"]
     user_id = str(message.from_user.id)
-    username = message.from_user.username or "نداره"
+    username = message.from_user.username or f"user_{user_id}"
+    file_path = f"data/{username}.json"
 
-    data = load_user_data(user_id, username)
-    if user_id not in data:
-        data[user_id] = {
-            "traders": {},
-            "alert_value": 100000,
-            "username": username
-        }
+    # اگر فایل وجود داره بخون، در غیر اینصورت لیست خالی
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8") as f:
+            traders = json.load(f)
+    else:
+        traders = []
 
     # بررسی تکراری بودن آدرس
-    if address in data[user_id]["traders"]:
+    if any(t["address"] == address for t in traders):
         await message.answer("⚠️ این آدرس قبلاً ثبت شده.")
         await state.finish()
         return
 
-    is_bot = 'bot' in nickname.lower() or 'bot' in address.lower()
-    data[user_id]["traders"][address] = {
+    trader_info = {
         "nickname": nickname,
-        "is_bot": is_bot,
-        "added_by": user_id,
-        "added_by_username": username,
-        "alert_value": alert_value
+        "address": address,
+        "alert_value": alert_value,
+        "telegram_id": user_id,
+        "username": username,
+        "saved_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
-    save_user_data(user_id, username, data)
+    traders.append(trader_info)
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(traders, f, ensure_ascii=False, indent=4)
+
     await state.finish()
     await message.answer("✅ تریدر با موفقیت ذخیره شد.")
-
-
-# ========== لیست تریدرها ==========
+    # ========== لیست تریدرها ==========
 @dp.message_handler(lambda msg: msg.text == "📋 لیست تریدرها")
 async def list_traders(message: types.Message):
-    user_id = str(message.from_user.id)
-    username = message.from_user.username or "بدون_یوزرنیم"
+    username = message.from_user.username or f"user_{message.from_user.id}"
+    file_path = f"data/{username}.json"
 
-    # مسیر فایل مخصوص کاربر
-    user_file = f"data/{username}.json"
-
-    # بررسی وجود فایل
-    if not os.path.exists(user_file):
+    if not os.path.exists(file_path):
         await message.answer("📭 لیست تریدرها خالیه.")
         return
 
-    # خواندن داده‌های ذخیره‌شده
-    with open(user_file, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    with open(file_path, "r", encoding="utf-8") as f:
+        traders = json.load(f)
 
-    traders = data.get("traders", {})
     if not traders:
         await message.answer("📭 لیست تریدرها خالیه.")
         return
 
-    # ساخت متن لیست
     trader_list = []
-    for address, info in traders.items():
+    for t in traders:
         trader_list.append(
-            f"🏷️ {info.get('nickname', '---')}\n"
-            f"🔗 {address}\n"
-            f"👤 ID: `{user_id}`\n"
-            f"🆔 @{username}\n"
-            f"📅 تاریخ ثبت: {info.get('saved_at', '---')}\n"
+            f"🏷️ {t.get('nickname', '---')}\n"
+            f"🔗 {t.get('address', '---')}\n"
+            f"👤 ID: `{t.get('telegram_id', '---')}`\n"
+            f"🆔 @{t.get('username', '---')}\n"
+            f"📅 تاریخ ثبت: {t.get('saved_at', '---')}\n"
             "──────────────"
         )
 
-    await message.answer("📋 لیست تریدرها:\n\n" + "\n\n".join(trader_list), parse_mode="Markdown")
+    # تقسیم متن در صورت طولانی بودن
+    full_text = "📋 لیست تریدرها:\n\n" + "\n\n".join(trader_list)
+    for part in split_text(full_text):
+        await message.answer(part, parse_mode="Markdown")
 
-
-    # استفاده از تابع split_text برای تقسیم پیام بلند
-    for part in split_text(msg):
-        await message.answer(part)
 def split_text(text, max_length=4000):
     lines = text.split('\n')
     chunks = []
     current_chunk = ""
-
     for line in lines:
         if len(current_chunk) + len(line) + 1 <= max_length:
             current_chunk += line + '\n'
         else:
             chunks.append(current_chunk)
             current_chunk = line + '\n'
-
     if current_chunk:
         chunks.append(current_chunk)
-
     return chunks
-
-
 # ========== حذف تریدر ==========
 class DeleteTrader(StatesGroup):
     waiting_for_delete_address = State()
