@@ -229,31 +229,41 @@ async def add_trader_step4(message: types.Message, state: FSMContext):
 
 # ========== لیست تریدرها ==========
 @dp.message_handler(lambda msg: msg.text == "📋 لیست تریدرها")
-async def list_traders(message: types.Message, state: FSMContext):
-    await state.finish()  # این خط رو اضافه کن تا state تموم شه
-    ...
-
+async def list_traders(message: types.Message):
     user_id = str(message.from_user.id)
-    data = load_user_data(user_id, username)
+    username = message.from_user.username or "بدون_یوزرنیم"
 
-    if user_id not in data or not data[user_id].get("traders"):
+    # مسیر فایل مخصوص کاربر
+    user_file = f"data/{username}.json"
+
+    # بررسی وجود فایل
+    if not os.path.exists(user_file):
         await message.answer("📭 لیست تریدرها خالیه.")
         return
 
-    traders = data[user_id]["traders"]
-    msg = "📋 لیست تریدرها:\n\n"
+    # خواندن داده‌های ذخیره‌شده
+    with open(user_file, "r", encoding="utf-8") as f:
+        data = json.load(f)
 
+    traders = data.get("traders", {})
+    if not traders:
+        await message.answer("📭 لیست تریدرها خالیه.")
+        return
+
+    # ساخت متن لیست
+    trader_list = []
     for address, info in traders.items():
-        nickname = info.get("nickname", "نامشخص")
-        added_by = info.get("added_by", "ناشناس")
-        username = data.get(user_id, {}).get("username", "نداره")
-        msg += (
-            f"🏷️ {nickname}\n"
+        trader_list.append(
+            f"🏷️ {info.get('nickname', '---')}\n"
             f"🔗 {address}\n"
-            f"👤 ID: `{added_by}`\n"
+            f"👤 ID: `{user_id}`\n"
             f"🆔 @{username}\n"
-            f"──────────────\n"
+            f"📅 تاریخ ثبت: {info.get('saved_at', '---')}\n"
+            "──────────────"
         )
+
+    await message.answer("📋 لیست تریدرها:\n\n" + "\n\n".join(trader_list), parse_mode="Markdown")
+
 
     # استفاده از تابع split_text برای تقسیم پیام بلند
     for part in split_text(msg):
