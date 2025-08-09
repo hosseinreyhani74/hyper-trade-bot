@@ -323,26 +323,31 @@ async def delete_trader_execute(message: types.Message, state: FSMContext):
 
 # ========== پروفایل ==========
 @dp.message_handler(lambda msg: msg.text == "📊 پروفایل")
-async def user_profile(message: types.Message):
+async def show_profile(message: types.Message):
     user_id = str(message.from_user.id)
+    username = message.from_user.username
+
+    # لود کردن داده‌های مخصوص همین کاربر
     data = load_user_data(user_id, username)
 
-    if user_id not in data:
-        await message.answer("❌ هیچ اطلاعاتی برای شما ثبت نشده.")
-        return
+    traders = data.get("traders", {})
+    trader_count = len(traders)
 
-    user_info = data[user_id]
-    username = message.from_user.username or "نداره"
-    count = len(user_info.get("traders", {}))
+    # متن پروفایل
+    text = (
+        f"📊 پروفایل شما:\n\n"
+        f"👤 نام کاربری: @{username}\n"
+        f"🆔 آیدی عددی: {user_id}\n"
+        f"📈 تعداد تریدرهای ثبت‌شده: {trader_count}\n"
+    )
 
-    text = f"""📊 پروفایل شما:
+    # اگر تریدر داشت، لیستش رو هم نشون بده
+    if trader_count > 0:
+        text += "\n📋 تریدرها:\n"
+        for addr, info in traders.items():
+            text += f"🏷️ {info['nickname']} → 🔗 {addr}\n"
 
-👤 یوزرنیم: @{username}
-🆔 آیدی عددی: `{user_id}`
-📈 تعداد تریدرهای ثبت‌شده: {count}
-"""
-    await message.answer(text, parse_mode="Markdown")
-
+    await message.answer(text)
 
 
 # ========== اجرای ربات ==========
