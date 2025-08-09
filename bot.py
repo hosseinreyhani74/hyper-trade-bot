@@ -287,3 +287,23 @@ async def error_handler(update, exception):
 if __name__ == "__main__":
     print("ربات شروع به کار کرد...")
     executor.start_polling(dp, skip_updates=True)
+import os
+import json
+
+DATA_DIR = "data"  # پوشه ذخیره داده ها
+os.makedirs(DATA_DIR, exist_ok=True)  # اگر نبود بساز
+
+def save_user_data(user_id, username, data):
+    # این مسیر فایل ذخیره داده هر کاربر هست
+    file_path = os.path.join(DATA_DIR, f"{user_id}_{username}.json")
+    print(f"Saving user data to: {file_path}")  # برای اطمینان که ذخیره میشه
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+def load_user_data(user_id, username):
+    file_path = os.path.join(DATA_DIR, f"{user_id}_{username}.json")
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    else:
+        return {"traders": {}}
