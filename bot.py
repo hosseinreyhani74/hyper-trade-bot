@@ -306,4 +306,4 @@ async def default_message_handler(message: types.Message):
 # =================== اجرای ربات ===================
 if __name__ == "__main__":
     print("ربات با موفقیت اجرا شد...")
-    executor.start_polling(dp, skip_updates=True)
+    executor.start_polling(dp,  skip_updates=True)
