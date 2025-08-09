@@ -1,223 +1,203 @@
 import os
 import json
-from datetime import datetime
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
-import pytz
 
-# ==================== تنظیمات ====================
-API_TOKEN = '7755592258:AAHhbD8C-l8gG3C3TaKTh5649kA1AVgakqQ'  # توکن ربات تلگرام خودت
-ADMIN_ID = 805989529  # آیدی عددی خودت در تلگرام
+# ======== تنظیمات =========
+API_TOKEN = "7755592258:AAHhbD8C-l8gG3C3TaKTh5649kA1AVgakqQ"  # توکن ربات خودت
+ADMIN_ID = 805989529  # آیدی تلگرام خودت (عدد)
 
-# پوشه‌های ذخیره‌سازی داده‌ها
-DATA_DIR = "data"
-BACKUP_DIR = "backups"
+# پوشه و فایل ذخیره داده‌ها
+DATA_FOLDER = "user_data"
+DATA_FILE = os.path.join(DATA_FOLDER, "data.json")
 
-# ساخت پوشه‌ها در صورت عدم وجود
-os.makedirs(DATA_DIR, exist_ok=True)
-os.makedirs(BACKUP_DIR, exist_ok=True)
+# ساخت فولدر اگر وجود نداشت
+os.makedirs(DATA_FOLDER, exist_ok=True)
 
-# فایل اصلی داده‌ها
-DATA_FILE = os.path.join(DATA_DIR, "users_data.json")
-
-# ==================== تابع گرفتن زمان ایران ====================
-def get_iran_time():
-    iran_tz = pytz.timezone('Asia/Tehran')
-    return datetime.now(iran_tz)
-
-# ==================== تابع بارگذاری داده‌ها ====================
+# ======== توابع بارگذاری و ذخیره داده‌ها ========
 def load_data():
     if not os.path.exists(DATA_FILE):
         return {}
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        # اگر فایل خراب بود، دیتای خالی برگردون
+        return {}
 
-# ==================== تابع ذخیره داده‌ها با بکاپ ====================
 def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
-    # بکاپ‌گیری
-    iran_time_str = get_iran_time().strftime("%Y-%m-%d_%H-%M-%S")
-    backup_file = os.path.join(BACKUP_DIR, f"backup_{iran_time_str}.json")
-    with open(backup_file, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
 
-# ==================== توابع کمکی ====================
-def split_text(text, max_length=4000):
+# ======== تقسیم متن برای پیام‌های طولانی ========
+def split_text(text, max_len=4000):
     lines = text.split('\n')
     chunks = []
-    current_chunk = ""
+    current = ""
     for line in lines:
-        if len(current_chunk) + len(line) + 1 <= max_length:
-            current_chunk += line + '\n'
-        else:
-            chunks.append(current_chunk)
-            current_chunk = line + '\n'
-    if current_chunk:
-        chunks.append(current_chunk)
+        if len(current) + len(line) + 1 > max_len:
+            chunks.append(current)
+            current = ""
+        current += line + "\n"
+    if current:
+        chunks.append(current)
     return chunks
 
-# ==================== تعریف حالت‌ها (FSM) ====================
+# ======== تعریف حالت‌ها برای افزودن و حذف تریدر ========
 class AddTrader(StatesGroup):
     waiting_for_address = State()
     waiting_for_nickname = State()
-    waiting_for_alert_value = State()
 
 class DeleteTrader(StatesGroup):
-    waiting_for_delete_address = State()
+    waiting_for_index = State()
 
-# ==================== راه‌اندازی ربات ====================
+# ======== راه‌اندازی ربات ========
 bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
-# ==================== کیبورد منوی اصلی ====================
-main_menu = types.ReplyKeyboardMarkup(resize_keyboard=True)
-main_menu.add("➕ افزودن تریدر", "🗑️ حذف تریدر")
-main_menu.add("📋 لیست تریدرها", "📊 پروفایل")
+# ======== کیبورد اصلی ========
+main_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+main_keyboard.add("➕ افزودن تریدر", "🗑️ حذف تریدر")
+main_keyboard.add("📋 لیست تریدرها", "📊 پروفایل")
 
-# ==================== هندلر شروع /start ====================
+# ======== دستور start ========
 @dp.message_handler(commands=["start"])
 async def cmd_start(message: types.Message):
-    await message.answer("سلام! یکی از گزینه‌های زیر رو انتخاب کن:", reply_markup=main_menu)
+    await message.answer(
+        "سلام! یکی از گزینه‌های زیر را انتخاب کن:",
+        reply_markup=main_keyboard,
+    )
 
-# ==================== افزودن تریدر ====================
+# ======== افزودن تریدر ========
 @dp.message_handler(lambda m: m.text == "➕ افزودن تریدر")
 async def add_trader_start(message: types.Message):
     await AddTrader.waiting_for_address.set()
-    await message.answer("آدرس تریدر رو وارد کن:")
+    await message.answer("لطفاً آدرس تریدر را وارد کنید:")
 
-@dp.message_handler(state=AddTrader.waiting_for_address, content_types=types.ContentTypes.TEXT)
+@dp.message_handler(state=AddTrader.waiting_for_address)
 async def add_trader_get_address(message: types.Message, state: FSMContext):
-    await state.update_data(address=message.text.strip())
+    address = message.text.strip()
+    if not address:
+        await message.answer("آدرس نامعتبر است، لطفاً مجدداً وارد کنید.")
+        return
+    await state.update_data(address=address)
     await AddTrader.next()
-    await message.answer("اسم مستعار تریدر رو وارد کن:")
+    await message.answer("اسم مستعار (nickname) تریدر را وارد کنید:")
 
-@dp.message_handler(state=AddTrader.waiting_for_nickname, content_types=types.ContentTypes.TEXT)
+@dp.message_handler(state=AddTrader.waiting_for_nickname)
 async def add_trader_get_nickname(message: types.Message, state: FSMContext):
-    await state.update_data(nickname=message.text.strip())
-    await AddTrader.next()
-    await message.answer("از چه مبلغی به بالا می‌خوای هشدار بگیری؟ (مثلاً: 150000)")
-
-@dp.message_handler(state=AddTrader.waiting_for_alert_value, content_types=types.ContentTypes.TEXT)
-async def add_trader_get_alert_value(message: types.Message, state: FSMContext):
-    try:
-        alert_value = int(message.text.strip())
-    except ValueError:
-        await message.answer("❌ لطفاً فقط عدد وارد کن.")
+    nickname = message.text.strip()
+    if not nickname:
+        await message.answer("نام مستعار نامعتبر است، لطفاً مجدداً وارد کنید.")
         return
 
-    data = load_data()
     user_id = str(message.from_user.id)
     username = message.from_user.username or f"user_{user_id}"
 
-    # گرفتن اطلاعات موقت از FSM
-    state_data = await state.get_data()
-    address = state_data["address"]
-    nickname = state_data["nickname"]
+    data = load_data()
 
-    # آماده کردن ساختار داده کاربر اگر نبود
     if user_id not in data:
-        data[user_id] = {
-            "username": username,
-            "traders": []
-        }
+        data[user_id] = {"username": username, "traders": []}
     else:
+        # به‌روزرسانی username در صورت تغییر
         data[user_id]["username"] = username
 
-    # بررسی تکراری بودن آدرس
-    if any(t['address'] == address for t in data[user_id]["traders"]):
-        await message.answer("⚠️ این آدرس قبلاً ثبت شده.")
+    user_traders = data[user_id]["traders"]
+
+    # گرفتن داده‌های مرحله قبل
+    state_data = await state.get_data()
+    address = state_data["address"]
+
+    # بررسی تکراری نبودن آدرس
+    if any(t["address"] == address for t in user_traders):
+        await message.answer("⚠️ این آدرس قبلاً ثبت شده است.")
         await state.finish()
         return
 
-    # افزودن تریدر جدید
-    new_trader = {
-        "address": address,
-        "nickname": nickname,
-        "alert_value": alert_value,
-        "added_at": get_iran_time().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    data[user_id]["traders"].append(new_trader)
+    # افزودن تریدر
+    user_traders.append({"address": address, "nickname": nickname})
 
-    # ذخیره داده‌ها
     save_data(data)
-    await message.answer("✅ تریدر با موفقیت ثبت شد.")
+
+    await message.answer(f"✅ تریدر '{nickname}' با موفقیت ثبت شد.", reply_markup=main_keyboard)
     await state.finish()
 
-# ==================== لیست تریدرها ====================
+# ======== لیست تریدرها ========
 @dp.message_handler(lambda m: m.text == "📋 لیست تریدرها")
 async def list_traders(message: types.Message):
-    data = load_data()
     user_id = str(message.from_user.id)
+    data = load_data()
+
     if user_id not in data or not data[user_id].get("traders"):
-        await message.answer("📭 لیست تریدرها خالی است.")
+        await message.answer("📭 شما هنوز هیچ تریدری ثبت نکرده‌اید.", reply_markup=main_keyboard)
         return
 
-    trader_texts = []
-    for t in data[user_id]["traders"]:
-        trader_texts.append(
-            f"🏷️ {t['nickname']}\n🔗 {t['address']}\n💰 هشدار بالای: {t['alert_value']}\n📅 ثبت شده در: {t['added_at']}\n─────────────"
-        )
-    full_text = "📋 لیست تریدرهای شما:\n\n" + "\n".join(trader_texts)
-    for part in split_text(full_text):
-        await message.answer(part)
+    text = "📋 لیست تریدرهای شما:\n\n"
+    for idx, t in enumerate(data[user_id]["traders"], 1):
+        text += f"{idx}. 🏷️ {t['nickname']} → 🔗 {t['address']}\n"
 
-# ==================== حذف تریدر ====================
+    for chunk in split_text(text):
+        await message.answer(chunk, reply_markup=main_keyboard)
+
+# ======== حذف تریدر ========
 @dp.message_handler(lambda m: m.text == "🗑️ حذف تریدر")
-async def delete_trader_start(message: types.Message, state: FSMContext):
-    data = load_data()
+async def delete_trader_start(message: types.Message):
     user_id = str(message.from_user.id)
+    data = load_data()
+
     if user_id not in data or not data[user_id].get("traders"):
-        await message.answer("❌ هیچ تریدری ثبت نشده.")
+        await message.answer("❌ هیچ تریدری برای حذف وجود ندارد.", reply_markup=main_keyboard)
         return
 
-    trader_list_text = "\n".join(
-        [f"{idx+1}. {t['nickname']} → {t['address']}" for idx, t in enumerate(data[user_id]["traders"])]
-    )
-    await message.answer(f"کد عددی تریدر مورد نظر برای حذف را بفرستید:\n\n{trader_list_text}")
-    await DeleteTrader.waiting_for_delete_address.set()
+    text = "لطفاً شماره تریدری که می‌خواهید حذف کنید را وارد کنید:\n\n"
+    for idx, t in enumerate(data[user_id]["traders"], 1):
+        text += f"{idx}. 🏷️ {t['nickname']} → 🔗 {t['address']}\n"
 
-@dp.message_handler(state=DeleteTrader.waiting_for_delete_address, content_types=types.ContentTypes.TEXT)
-async def delete_trader_execute(message: types.Message, state: FSMContext):
-    data = load_data()
+    await DeleteTrader.waiting_for_index.set()
+    await message.answer(text)
+
+@dp.message_handler(state=DeleteTrader.waiting_for_index)
+async def delete_trader_confirm(message: types.Message, state: FSMContext):
     user_id = str(message.from_user.id)
+    data = load_data()
 
     if user_id not in data or not data[user_id].get("traders"):
-        await message.answer("❌ هیچ تریدری برای حذف وجود ندارد.")
+        await message.answer("❌ لیست تریدرها خالی است.", reply_markup=main_keyboard)
         await state.finish()
         return
 
     try:
         idx = int(message.text.strip()) - 1
         if idx < 0 or idx >= len(data[user_id]["traders"]):
-            await message.answer("❌ عدد وارد شده معتبر نیست.")
+            await message.answer("❌ شماره وارد شده معتبر نیست، لطفاً مجدداً تلاش کنید.")
             return
-    except ValueError:
+    except:
         await message.answer("❌ لطفاً فقط عدد وارد کنید.")
         return
 
     removed = data[user_id]["traders"].pop(idx)
     save_data(data)
-    await message.answer(f"✅ تریدر '{removed['nickname']}' با موفقیت حذف شد.")
+
+    await message.answer(f"✅ تریدر '{removed['nickname']}' حذف شد.", reply_markup=main_keyboard)
     await state.finish()
 
-# ==================== نمایش پروفایل ====================
+# ======== نمایش پروفایل ========
 @dp.message_handler(lambda m: m.text == "📊 پروفایل")
 async def show_profile(message: types.Message):
-    data = load_data()
     user_id = str(message.from_user.id)
+    data = load_data()
 
     if user_id not in data:
-        await message.answer("❌ پروفایل شما پیدا نشد. لطفاً ابتدا تریدر اضافه کنید.")
+        await message.answer("❌ پروفایل پیدا نشد. لطفاً ابتدا تریدر اضافه کنید.", reply_markup=main_keyboard)
         return
 
-    user_info = data[user_id]
-    traders = user_info.get("traders", [])
+    user = data[user_id]
+    username = user.get("username", "ندارد")
+    traders = user.get("traders", [])
     trader_count = len(traders)
-    username = user_info.get("username", "ندارد")
 
     text = (
         f"📊 پروفایل شما:\n\n"
@@ -225,35 +205,37 @@ async def show_profile(message: types.Message):
         f"🆔 آیدی عددی: {user_id}\n"
         f"📈 تعداد تریدرهای ثبت‌شده: {trader_count}\n"
     )
+
     if trader_count > 0:
         text += "\n📋 لیست تریدرها:\n"
         for t in traders:
             text += f"🏷️ {t['nickname']} → 🔗 {t['address']}\n"
 
-    await message.answer(text)
+    await message.answer(text, reply_markup=main_keyboard)
 
-# ==================== دستور مدیریت: نمایش کل داده‌ها ====================
+# ======== دستور ادمین برای دیدن کل داده‌ها ========
 @dp.message_handler(commands=["user_data"])
 async def user_data_admin(message: types.Message):
     if message.from_user.id != ADMIN_ID:
         await message.answer("❌ شما دسترسی ندارید.")
         return
+
     data = load_data()
     if not data:
         await message.answer("❌ هیچ داده‌ای ثبت نشده است.")
         return
 
     text = ""
-    for uid, info in data.items():
-        uname = info.get("username", "ندارد")
+    for uid, user in data.items():
+        uname = user.get("username", "ندارد")
         text += f"\n👤 User ID: {uid}\n🔗 Username: @{uname}\n"
-        for t in info.get("traders", []):
+        for t in user.get("traders", []):
             text += f"• {t['nickname']} → {t['address']}\n"
 
-    for part in split_text(text):
-        await message.answer(part)
+    for chunk in split_text(text):
+        await message.answer(chunk)
 
-# ==================== اجرای ربات ====================
+# ======== اجرای ربات ========
 if __name__ == "__main__":
     print("ربات در حال اجراست...")
     executor.start_polling(dp, skip_updates=True)
